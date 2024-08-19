@@ -1,1 +1,4 @@
 data/
+src/.cache/
+*.pyc
+.env
