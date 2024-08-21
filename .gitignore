@@ -1,4 +1,4 @@
 data/
-src/.cache/
+.cache/
 *.pyc
 .env
