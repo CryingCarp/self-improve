@@ -1,8 +1,8 @@
 from pydantic import Field
 from langchain_core.tools import BaseTool
 from langchain_google_community import GoogleSearchAPIWrapper
-from langchain_community.utilities import BingSearchAPIWrapper, BraveSearchWrapper, WikipediaAPIWrapper
-from langchain_community.tools import WikipediaQueryRun
+from langchain_community.utilities import BingSearchAPIWrapper, BraveSearchWrapper, WikipediaAPIWrapper, GoogleSerperAPIWrapper
+from langchain_community.tools import WikipediaQueryRun, TavilySearchResults
 from langchain_community.tools.wikidata.tool import WikidataAPIWrapper, WikidataQueryRun
 import requests
 
@@ -14,6 +14,7 @@ from azure.core.credentials import AzureKeyCredential
 from azure.ai.contentsafety.models import TextCategory, AnalyzeTextOptions
 from azure.ai.contentsafety import ContentSafetyClient
 from azure.core.exceptions import HttpResponseError
+# from src.tools.web_tools.core.engines.google import Search as GoogleSearch
 
 from bs4 import BeautifulSoup
 
@@ -28,14 +29,13 @@ class GoogleSearchTool(BaseTool):
     cache = Field(init=True)
     google = Field(init=True)
     def __init__(self, name: str = "google_search", description: str = "A search engine. useful for when you need to answer questions about current events. Input should be a search query. ",
-                  cache_dir: str = ".cache/google_knowledge_graph_tool"):
+                  cache_dir: str = ".cache/google_search_tool"):
         super().__init__(name=name, description=description, cache_dir=cache_dir)
         self.cache = dc.Cache(cache_dir)
-        self.google = GoogleSearchAPIWrapper()
+        self.google = GoogleSerperAPIWrapper()
 
     def _run(self, query: str) -> str:
         if query in self.cache:
-            print("Cache hit for text:", query)
             return self.cache[query]
         else:
             result = self.google.results(query=query, num_results=1)[0]
@@ -53,48 +53,54 @@ class BingSearchTool(BaseTool):
 
     def _run(self, query: str) -> str:
         if query in self.cache:
-            print("Cache hit for text:", query)
             return self.cache[query]
         else:
-            result = self.bing.results(query=query, num_results=1)[0]
-            result["snippet"] = BeautifulSoup(result["snippet"], "html.parser").get_text()
-            result["title"] = BeautifulSoup(result["title"], "html.parser").get_text()
-            self.cache[query] = result
-        return result
+            results = self.bing.results(query=query, num_results=3)
+            for result in results:
+                result["snippet"] = BeautifulSoup(result["snippet"], "html.parser").get_text()
+                result["title"] = BeautifulSoup(result["title"], "html.parser").get_text()
+                result.pop("link")
+            self.cache[query] = results
+        return results
     
 class BraveSearchTool(BaseTool):
     cache = Field(init=True)
     brave = Field(init=True)
     def __init__(self, name: str = "brave_search", 
                  description: str = "A search engine. useful for when you need to answer questions about current events. Input should be a search query. ", 
-                 cache_dir: str = ".cache/brave_search_tool", api_key: str = None, search_kwargs: dict = {"count": 1}):
+                 cache_dir: str = ".cache/brave_search_tool", api_key: str = None, search_kwargs: dict = {"count": 3}):
         super().__init__(name=name, description=description, cache_dir=cache_dir)
         self.cache = dc.Cache(cache_dir)
         self.brave = BraveSearchWrapper(api_key=api_key, search_kwargs=search_kwargs or {})
     
     def _run(self, query: str) -> str:
         if query in self.cache:
-            print("Cache hit for text:", query)
-            result = self.cache[query]
+            results = self.cache[query]
         else:
-            result = self.brave.run(query=query)[0]
-            self.cache[query] = result
-
-        result['snippet'] = BeautifulSoup(result['snippet'], "html.parser").get_text()
-        return result
+            results = self.brave.run(query=query)
+            for result in results:
+                result["snippet"] = BeautifulSoup(result["snippet"], "html.parser").get_text()
+                result["title"] = BeautifulSoup(result["title"], "html.parser").get_text()
+                result.pop("link")
+            self.cache[query] = results
+        return results
 
 class WikidataTool(WikidataQueryRun):
     name = "wikidata"
 
     cache = Field(init=True)
 
-    def __init__(self, api_wrapper: WikidataAPIWrapper = WikidataAPIWrapper(), cache_dir: str = ".cache/wikidata_tool"):
+    def __init__(self, api_wrapper: WikidataAPIWrapper = WikidataAPIWrapper(), 
+                 cache_dir: str = ".cache/wikidata_tool",
+                 description: str = """Wrapper around the Wikidata API.
+                                    This wrapper will use the Wikibase APIs to conduct searches and
+                                    fetch item content. Always remember that the input to the Wikidata API should be a single phrase or entity!
+                                    """):
         super().__init__(api_wrapper=api_wrapper)
         self.cache = dc.Cache(cache_dir)
 
     def _run(self, query: str) -> str:
         if query in self.cache:
-            print("Cache hit for text:", query)
             return self.cache[query]
         
         results = super()._run(query)
@@ -108,13 +114,12 @@ class WikipediaTool(WikipediaQueryRun):
 
     cache = Field(init=True)
 
-    def __init__(self, api_wrapper: WikipediaAPIWrapper = WikipediaAPIWrapper(top_k_results=1), cache_dir: str = ".cache/wikipedia_tool"):
+    def __init__(self, api_wrapper: WikipediaAPIWrapper = WikipediaAPIWrapper(top_k_results=3), cache_dir: str = ".cache/wikipedia_tool"):
         super().__init__(api_wrapper=api_wrapper)
         self.cache = dc.Cache(cache_dir)
 
     def _run(self, query: str) -> str:
         if query in self.cache:
-            print("Cache hit for text:", query)
             return self.cache[query]
         
         results = super()._run(query)
@@ -140,7 +145,6 @@ class GoogleKnowledgeGraphTool(BaseTool):
 
     def _run(self, query: str, limit: int = 1) -> str:
         if query in self.cache:
-            print("Cache hit for text:", query)
             return self.cache[query]
 
         service_url = "https://kgsearch.googleapis.com/v1/entities:search"
@@ -220,7 +224,6 @@ class PerspectiveTool(BaseTool):
         
     def _run(self, text: str):
         if text in self.cache:
-            print("Cache hit for text:", text)
             return self.cache[text]
 
         PERSPECTIVE_API_ATTRIBUTES = (
@@ -264,7 +267,6 @@ class AzureContentModerationTool(BaseTool):
 
     def _run(self, text: str) -> str:
         if text in self.cache:
-            print("Cache hit for text:", text)
             return self.cache[text]
         
         request = AnalyzeTextOptions(text=text)
@@ -297,9 +299,30 @@ class AzureContentModerationTool(BaseTool):
     def _format_results(self, results: dict) -> str:
         return "\n".join(f"{category.capitalize()} severity: {severity} outof 7." for category, severity in results.items())
 
+class TavilySearch(BaseTool):
+    cache = Field(init=True)
+    tavily = Field(init=True)
+    def __init__(self, name: str = "tavily_search", description: str = (
+                    "A search engine optimized for comprehensive, accurate, and trusted results. "
+                    "Useful for when you need to answer questions about current events. "
+                    "Input should be a search query."
+                ),
+                  cache_dir: str = ".cache/tavily_search_tool"):
+        super().__init__(name=name, description=description, cache_dir=cache_dir)
+        self.cache = dc.Cache(cache_dir)
+        self.tavily = TavilySearchResults(max_results=1, search_depth="advanced", include_answer=True, include_raw_content=True)
+    def _run(self, query: str) -> str:
+        if query in self.cache:
+            return self.cache[query]
+        else:
+            result = self.tavily.run(tool_input=query)[0]
+            self.cache[query] = result
+        return result
+
 def construct_tools():
     return [
         GoogleSearchTool(),
+        TavilySearch(),
         BingSearchTool(),
         BraveSearchTool(api_key=os.environ.get("BRAVE_API_KEY")),
         WikidataTool(),
@@ -326,7 +349,9 @@ def get_tools_dict(tools:list)->dict:
 
 if __name__ == "__main__":
     google_search = GoogleSearchTool()
-    print(google_search.run("University of Louisville game results January 2, 2012"))
+    print(google_search.run("University of Louisville game results January 2, 2012")) 
+    tavily = TavilySearch()
+    print(tavily.run("University of Louisville game results January 2, 2012"))
     bing_search = BingSearchTool()
     print(bing_search.run("how to make steak recipe"))
     brave = BraveSearchTool(api_key=os.environ.get("BRAVE_API_KEY"))
