@@ -1,7 +1,11 @@
 {
-    "dependencies": ["."],
-    "graphs": {
-      "agent": "./agent.py:workflow"
-    },
-    "env": ".env"
-  }
+  "python_version": "3.12",
+  "dockerfile_lines": [],
+  "dependencies": [
+    "."
+  ],
+  "graphs": {
+    "agent": "./agent/agent.py:app"
+  },
+  "env": ".env"
+}

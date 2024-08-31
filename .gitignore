@@ -2,3 +2,6 @@ data/
 .cache/
 *.pyc
 .env
+/output
+.vscode
+agent/src
