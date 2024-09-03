@@ -6,3 +6,4 @@ data/
 .vscode
 agent/src
 prompts/
+__pycache__/
