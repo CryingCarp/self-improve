@@ -7,3 +7,6 @@ data/
 agent/src
 prompts/
 __pycache__/
+/agent/evaluate_math.ipynb
+/agent/evaluate_qa.ipynb
+.idea/
