@@ -1,7 +1,7 @@
 from datasets import load_dataset, DatasetDict
-from langchain_core.prompts import ChatPromptTemplate
-from langchain import hub
 from dotenv import load_dotenv, find_dotenv
+from langchain import hub
+from langchain_core.prompts import ChatPromptTemplate
 
 _ = load_dotenv(find_dotenv())
 
@@ -21,21 +21,20 @@ def process_dataset(file_path: str) -> DatasetDict:
 	if "tabmwp" in file_path:
 		updated_dataset: DatasetDict = dataset.map(
 			lambda example: {
-				"context": (f"Read the following table regarding {example["table_title"]}"
-							f"and then use tools to get the final answer\n{example["table"]}\n"),
+				"context": f"Read the following table regarding {example["table_title"]}\n\n{example["table"]}\n",
 				"question": example["question"],
 				"answer": example["answer"]})
 	elif "gsm8k" in file_path:
 		updated_dataset: DatasetDict = dataset.map(
 			lambda example: {
-				"context": "Read the following question and then use tools to get the final answer\n",
+				"context": "",
 				"question": example["question"],
 				"answer": example["answer"]
 			})
 	elif "svamp" in file_path:
 		updated_dataset: DatasetDict = dataset.map(
 			lambda example: {
-				"context": f"Read the following text and then use tools to get the final answer\n{example['Body']}\n",
+				"context": example['Body'],
 				"question": example["Question"],
 				"answer": example["Answer"]
 			})
