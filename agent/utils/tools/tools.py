@@ -1,12 +1,11 @@
 from pydantic import Field
 from langchain_core.tools import BaseTool
-from langchain_google_community import GoogleSearchAPIWrapper
 from langchain_community.utilities import BingSearchAPIWrapper, BraveSearchWrapper, WikipediaAPIWrapper, GoogleSerperAPIWrapper
 from langchain_community.tools import WikipediaQueryRun, TavilySearchResults
 from langchain_community.tools.wikidata.tool import WikidataAPIWrapper, WikidataQueryRun
 import requests
 
-import numexpr as ne 
+import numexpr as ne
 from langchain_experimental.utilities import PythonREPL
 
 from googleapiclient import discovery
@@ -14,7 +13,6 @@ from azure.core.credentials import AzureKeyCredential
 from azure.ai.contentsafety.models import TextCategory, AnalyzeTextOptions
 from azure.ai.contentsafety import ContentSafetyClient
 from azure.core.exceptions import HttpResponseError
-# from src.tools.web_tools.core.engines.google import Search as GoogleSearch
 
 from bs4 import BeautifulSoup
 
@@ -23,6 +21,9 @@ import os
 from dotenv import load_dotenv, find_dotenv
 
 _ = load_dotenv(find_dotenv())
+
+from .python_interpreter import python_interpreter
+from .calculator import calculator
 
 
 class GoogleSearchTool(BaseTool):
@@ -38,7 +39,7 @@ class GoogleSearchTool(BaseTool):
         if query in self.cache:
             return self.cache[query]
         else:
-            result = self.google.results(query=query, num_results=1)[0]
+            result = self.google.run(query=query)
             self.cache[query] = result
         return result
 
@@ -55,7 +56,7 @@ class BingSearchTool(BaseTool):
         if query in self.cache:
             return self.cache[query]
         else:
-            results = self.bing.results(query=query, num_results=3)
+            results = self.bing.results(query=query, num_results=1)
             for result in results:
                 result["snippet"] = BeautifulSoup(result["snippet"], "html.parser").get_text()
                 result["title"] = BeautifulSoup(result["title"], "html.parser").get_text()
@@ -68,7 +69,7 @@ class BraveSearchTool(BaseTool):
     brave = Field(init=True)
     def __init__(self, name: str = "brave_search", 
                  description: str = "A search engine. useful for when you need to answer questions about current events. Input should be a search query. ", 
-                 cache_dir: str = ".cache/brave_search_tool", api_key: str = None, search_kwargs: dict = {"count": 3}):
+                 cache_dir: str = ".cache/brave_search_tool", api_key: str = None, search_kwargs: dict = {"count": 1}):
         super().__init__(name=name, description=description, cache_dir=cache_dir)
         self.cache = dc.Cache(cache_dir)
         self.brave = BraveSearchWrapper(api_key=api_key, search_kwargs=search_kwargs or {})
@@ -114,7 +115,7 @@ class WikipediaTool(WikipediaQueryRun):
 
     cache = Field(init=True)
 
-    def __init__(self, api_wrapper: WikipediaAPIWrapper = WikipediaAPIWrapper(top_k_results=3), cache_dir: str = ".cache/wikipedia_tool"):
+    def __init__(self, api_wrapper: WikipediaAPIWrapper = WikipediaAPIWrapper(top_k_results=1), cache_dir: str = ".cache/wikipedia_tool"):
         super().__init__(api_wrapper=api_wrapper)
         self.cache = dc.Cache(cache_dir)
 
@@ -127,7 +128,8 @@ class WikipediaTool(WikipediaQueryRun):
         self.cache[query] = results
         
         return results
-    
+
+
 class GoogleKnowledgeGraphTool(BaseTool):
     name = "google_knowledge_graph"
     description = (
@@ -177,6 +179,7 @@ class GoogleKnowledgeGraphTool(BaseTool):
 
         return "\n".join(formatted_results) if formatted_results else "No results found."
 
+
 class CalculatorTool(BaseTool):
     name = "calculator"
     description = ("Useful when you need to calculate the value of a mathematical expression, including basic arithmetic operations. "
@@ -190,18 +193,21 @@ class CalculatorTool(BaseTool):
       except Exception as e:
         # return "This is not a numexpr valid syntax. Try a different syntax."
         return f"Error in calculation: {str(e)}"
-      
+
+
 class PythonREPLTool(BaseTool):
     name = "python_repl"
     description = ("A Python shell. Use this to execute python code. It could also be used as a calculator. "
                    "Input should be a valid python code. "
                    "If you want to see the output of a value, you should print it out with `print(...)`.")
+
     def _run(self, code: str) -> str:
         try:
             result = PythonREPL().run(code)
             return result
         except Exception as e:
             return f"Error: {str(e)}"
+
 
 class PerspectiveTool(BaseTool):
     name = "perspective"
@@ -246,6 +252,7 @@ class PerspectiveTool(BaseTool):
         # Cache the result
         self.cache[text] = response
         return response
+
 
 class AzureContentModerationTool(BaseTool):
     name = "azure_content_moderation"
@@ -328,17 +335,19 @@ def construct_tools():
         WikidataTool(),
         WikipediaTool(),
         GoogleKnowledgeGraphTool(api_key=os.environ.get("GOOGLE_API_KEY")),
-        CalculatorTool(),
         PythonREPLTool(),
+        CalculatorTool(),
         PerspectiveTool(),
         AzureContentModerationTool(endpoint=os.environ.get("AZURE_CONTENT_SAFETY_ENDPOINT"), key=os.environ.get("AZURE_CONTENT_SAFETY_KEY"))
     ]
+
 
 def get_tools_descriptions(tools:list):
     tools_descriptions = []
     for tool in tools:
         tools_descriptions.append(f"{tool.name} - {tool.description}")
     return "\n\n".join(tools_descriptions)
+
 
 def get_tools_dict(tools:list)->dict:
     tools_dict = {}
@@ -347,26 +356,31 @@ def get_tools_dict(tools:list)->dict:
     return tools_dict
 
 
+def main():
+    pass
+    # google_search = GoogleSearchTool()
+    # print(google_search.run("US"))
+    # tavily = TavilySearch()
+    # print(tavily.run("University of Louisville game results January 2, 2012"))
+    # bing_search = BingSearchTool()
+    # print(bing_search.run("how to make steak recipe"))
+    # brave = BraveSearchTool(api_key=os.environ.get("BRAVE_API_KEY"))
+    # print(brave.run("Louisville Cardinals basketball January 2 2012 game summary and venue"))
+    # azure_content_moderation = AzureContentModerationTool(endpoint=os.environ.get("AZURE_CONTENT_SAFETY_ENDPOINT"), key=os.environ.get("AZURE_CONTENT_SAFETY_KEY"))
+    # print(azure_content_moderation.run("I hate you"))
+    # wikidata = WikidataTool()
+    # print(wikidata.run("University of Louisville game January 2, 2012"))
+    # wikipedia = WikipediaTool()
+    # print(wikipedia.run("2011–12 Louisville Cardinals men's basketball team"))
+    # google_knowledge_graph = GoogleKnowledgeGraphTool(api_key=os.environ.get("GOOGLE_API_KEY"))
+    # google_knowledge_graph.run("China")
+    # calculator = CalculatorTool()
+    # calculator.run("2+2")
+    # python_repl = PythonREPLTool()
+    # python_repl.run("print('Hello, World!')")
+    # perspective = PerspectiveTool()
+    # print(perspective.run("I hate you"))
+
+
 if __name__ == "__main__":
-    google_search = GoogleSearchTool()
-    print(google_search.run("University of Louisville game results January 2, 2012")) 
-    tavily = TavilySearch()
-    print(tavily.run("University of Louisville game results January 2, 2012"))
-    bing_search = BingSearchTool()
-    print(bing_search.run("how to make steak recipe"))
-    brave = BraveSearchTool(api_key=os.environ.get("BRAVE_API_KEY"))
-    print(brave.run("Louisville Cardinals basketball January 2 2012 game summary and venue"))
-    azure_content_moderation = AzureContentModerationTool(endpoint=os.environ.get("AZURE_CONTENT_SAFETY_ENDPOINT"), key=os.environ.get("AZURE_CONTENT_SAFETY_KEY"))
-    print(azure_content_moderation.run("I hate you"))
-    wikidata = WikidataTool()
-    print(wikidata.run("University of Louisville game January 2, 2012"))
-    wikipedia = WikipediaTool()
-    print(wikipedia.run("2011–12 Louisville Cardinals men's basketball team"))
-    google_knowledge_graph = GoogleKnowledgeGraphTool(api_key=os.environ.get("GOOGLE_API_KEY"))
-    google_knowledge_graph.run("China")
-    calculator = CalculatorTool()
-    calculator.run("2+2")
-    python_repl = PythonREPLTool()
-    python_repl.run("print('Hello, World!')")
-    perspective = PerspectiveTool()
-    print(perspective.run("I hate you"))
+    main()

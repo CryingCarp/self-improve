@@ -21,8 +21,8 @@ def process_dataset(file_path: str) -> DatasetDict:
 	if "tabmwp" in file_path:
 		updated_dataset: DatasetDict = dataset.map(
 			lambda example: {
-				"context": f"Read the following table regarding {example["table_title"]} and then use \
-				tools to get the final answer\n{example["table"]}\n",
+				"context": (f"Read the following table regarding {example["table_title"]}"
+							f"and then use tools to get the final answer\n{example["table"]}\n"),
 				"question": example["question"],
 				"answer": example["answer"]})
 	elif "gsm8k" in file_path:
@@ -62,12 +62,18 @@ def load_prompt(dataset_name: str) -> ChatPromptTemplate:
 	return prompt
 
 
+def load_result(file_path: str) -> DatasetDict:
+	dataset = load_dataset("json", data_files=file_path, split="train")
+	return dataset
+
+
 def main():
 	# Load dataset
 	prompt = load_prompt(dataset_name="hotpot_qa")
 	prompt.pretty_print()
 	dataset = process_dataset(file_path="/Users/ariete/Projects/self-improve/data/tabmwp.jsonl")
-	print(dataset)
+	unique_values = set(dataset["ans_type"])
+	print(unique_values)
 
 
 if __name__ == '__main__':
