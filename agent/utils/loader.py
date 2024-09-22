@@ -126,9 +126,8 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 	return prompt
 
 
-def load_processed_data(dataset_name: str) -> DatasetDict:
-	processed_dataset = load_dataset("json", data_files=f"../../data/processed_data/{dataset_name}.jsonl",
-									 split="train")
+def load_processed_data(dataset_name: str, file_path: str) -> DatasetDict:
+	processed_dataset = load_dataset("json", data_files=file_path, split="train")
 	return processed_dataset
 
 
