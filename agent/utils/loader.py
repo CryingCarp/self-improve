@@ -99,15 +99,25 @@ def process_dataset(dataset_name: str) -> DatasetDict:
 
 
 # Load prompt
-def load_prompt(dataset_name: str) -> ChatPromptTemplate:
-	dataset_prompts: dict = {
-		"gsm8k": "ariete/gsm8k_9shot",
-		"svamp": "ariete/svamp_7shot",
-		"tabmwp": "ariete/tabmwp_4shot",
-		"hotpot_qa": "ariete/hotpot_qa_6shot",
-		"ambig_qa": "ariete/ambig_qa_5shot",
-		"trivia_qa": "ariete/trivia_qa_5shot",
-	}
+def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
+	if mode == "cot":
+		dataset_prompts: dict = {
+			"gsm8k": "ariete/gsm8k_9shot",
+			"svamp": "ariete/svamp_7shot",
+			"tabmwp": "ariete/tabmwp_4shot",
+			"hotpot_qa": "ariete/hotpot_qa_6shot",
+			"ambig_qa": "ariete/ambig_qa_5shot",
+			"trivia_qa": "ariete/trivia_qa_5shot",
+		}
+	else:
+		dataset_prompts: dict = {
+			"gsm8k": "arietem/gsm8k_direct",
+			"svamp": "arietem/svamp_direct",
+			"tabmwp": "arietem/tabmwp_direct",
+			"hotpot_qa": "arietem/hotpot_qa_direct",
+			"ambig_qa": "arietem/ambig_qa_direct",
+			"trivia_qa": "arietem/trivia_qa_direct",
+		}
 	
 	if dataset_name not in dataset_prompts:
 		raise ValueError(f"Dataset {dataset_name} not supported")
@@ -116,8 +126,9 @@ def load_prompt(dataset_name: str) -> ChatPromptTemplate:
 	return prompt
 
 
-def load_result(file_path: str) -> DatasetDict:
-	processed_dataset = load_dataset("json", data_files=file_path, split="train")
+def load_processed_data(dataset_name: str) -> DatasetDict:
+	processed_dataset = load_dataset("json", data_files=f"../../data/processed_data/{dataset_name}.jsonl",
+									 split="train")
 	return processed_dataset
 
 
@@ -125,10 +136,13 @@ def main():
 	# Load dataset
 	# prompt = load_prompt(dataset_name="hotpot_qa")
 	# prompt.pretty_print()
-	dataset: DatasetDict = process_dataset(dataset_name="trivia_qa")
+	# dataset: DatasetDict = process_dataset(dataset_name="trivia_qa")
 	# unique_values = set(dataset["ans_type"])
 	# print(unique_values)
+	# print(dataset)
+	dataset = load_processed_data("hotpot_qa")
 	print(dataset)
+
 
 if __name__ == '__main__':
 	main()
