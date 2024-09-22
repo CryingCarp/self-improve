@@ -1,7 +1,6 @@
 .cache/
 *.pyc
 .env
-/output
 .vscode
 agent/src
 prompts/
