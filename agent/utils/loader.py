@@ -67,12 +67,20 @@ def process_dataset(dataset_name: str) -> DatasetDict:
 		updated_dataset.to_json(save_file_path)
 	elif dataset_name == "tabmwp":
 		raw_dataset = load_dataset("Arietem/tabmwp", split="train")
-		updated_dataset = raw_dataset.map(
-			lambda example: {
-				"context": f"Read the following table regarding {example['table_title']}\n\n{example['table']}\n", # type: str
-				"question": example["question"], # type: str
-				"answer": example["answer"] # type: str
-			}).select_columns(["context", "question", "answer"])
+
+		def process_example(example: dict) -> dict:
+			if example["ques_type"] == "multi_choice":
+				question = f"{example['question']} Choose from the the options: {example['choices']}"
+			else:
+				question = example['question']
+			return {
+				"context": f"Read the following table regarding \"{example['table_title']}\" and then answer a question.\n\n{example['table']}", # type: str
+				"question": question, # type: str
+				"answer": example["answer"], # type: str
+				"ques_type": example["ques_type"], # type: str
+				"choices": example["choices"] # type: list[str]
+			}
+		updated_dataset = raw_dataset.map(process_example).select_columns(["context", "question", "answer", "ques_type", "choices"])
 		updated_dataset.to_json(save_file_path)
 		print(f"Saved dataset to {save_file_path}")
 	elif dataset_name == "gsm8k":
@@ -139,8 +147,7 @@ def main():
 	# unique_values = set(dataset["ans_type"])
 	# print(unique_values)
 	# print(dataset)
-	dataset = load_processed_data("hotpot_qa")
-	print(dataset)
+	process_dataset("tabmwp")
 
 
 if __name__ == '__main__':
