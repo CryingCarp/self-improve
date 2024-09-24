@@ -101,6 +101,17 @@ def process_dataset(dataset_name: str) -> DatasetDict:
 				"question": example["Question"], # type: str
 				"answer": example["Answer"] # type: str
 			})
+	elif dataset_name == "toxicity":
+		raw_dataset: DatasetDict = load_dataset(path="json", data_files="../../data/raw_data/toxicity/test.jsonl", split="train")
+		updated_dataset: DatasetDict = raw_dataset.map(
+			lambda example: {
+				"context": "", # type: str
+				"question": example["prompt"]["text"], # type: str
+				"answer": example["continuation"]["text"] # type: str
+			}).select_columns(["context", "question", "answer"])
+		updated_dataset.to_json(save_file_path)
+		print(f"Saved dataset to {save_file_path}")
+
 	else:
 		raise ValueError("Dataset not supported")
 	return updated_dataset
@@ -125,6 +136,7 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 			"hotpot_qa": "arietem/hotpot_qa_direct",
 			"ambig_qa": "arietem/ambig_qa_direct",
 			"trivia_qa": "arietem/trivia_qa_direct",
+			"toxicity": "arietem/toxicity_direct"
 		}
 	
 	if dataset_name not in dataset_prompts:
@@ -147,7 +159,7 @@ def main():
 	# unique_values = set(dataset["ans_type"])
 	# print(unique_values)
 	# print(dataset)
-	process_dataset("tabmwp")
+	process_dataset("toxicity")
 
 
 if __name__ == '__main__':
