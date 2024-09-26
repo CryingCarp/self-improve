@@ -121,14 +121,14 @@ def process_dataset(dataset_name: str) -> DatasetDict:
 def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 	if mode == "cot":
 		dataset_prompts: dict = {
-			"gsm8k": "ariete/gsm8k_9shot",
-			"svamp": "ariete/svamp_7shot",
-			"tabmwp": "ariete/tabmwp_4shot",
-			"hotpot_qa": "ariete/hotpot_qa_6shot",
-			"ambig_qa": "ariete/ambig_qa_5shot",
-			"trivia_qa": "ariete/trivia_qa_5shot",
+			"gsm8k": "arietem/gsm8k_cot",
+			"svamp": "arietem/svamp_cot",
+			"tabmwp": "arietem/tabmwp_cot",
+			"hotpot_qa": "arietem/hotpot_qa_cot",
+			"ambig_qa": "arietem/ambig_qa_cot",
+			"trivia_qa": "arietem/trivia_qa_cot",
 		}
-	else:
+	elif mode == "direct":
 		dataset_prompts: dict = {
 			"gsm8k": "arietem/gsm8k_direct",
 			"svamp": "arietem/svamp_direct",
@@ -137,6 +137,12 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 			"ambig_qa": "arietem/ambig_qa_direct",
 			"trivia_qa": "arietem/trivia_qa_direct",
 			"toxicity": "arietem/toxicity_direct"
+		}
+	else:
+		dataset_prompts: dict = {
+			"gsm8k": "arietem/gsm8k_pot",
+			"svamp": "arietem/svamp_pot",
+			"tabmwp": "arietem/tabmwp_pot"
 		}
 	
 	if dataset_name not in dataset_prompts:
