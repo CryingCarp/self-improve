@@ -119,7 +119,7 @@ def process_dataset(dataset_name: str) -> DatasetDict:
 
 # Load prompt
 def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
-	if mode == "cot":
+	if mode in ["cot", "self-consistency"]:
 		dataset_prompts: dict = {
 			"gsm8k": "arietem/gsm8k_cot",
 			"svamp": "arietem/svamp_cot",
