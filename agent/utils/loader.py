@@ -138,6 +138,15 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 			"trivia_qa": "arietem/trivia_qa_direct",
 			"toxicity": "arietem/toxicity_direct"
 		}
+	elif mode == "critic":
+		dataset_prompts: dict = {
+			"gsm8k": "arietem/gsm8k_critic",
+			"svamp": "arietem/svamp_critic",
+			"tabmwp": "arietem/tabmwp_critic",
+			"hotpot_qa": "arietem/hotpot_qa_critic",
+			"ambig_qa": "arietem/ambig_qa_critic",
+			"trivia_qa": "arietem/trivia_qa_critic"
+		}
 	else:
 		dataset_prompts: dict = {
 			"gsm8k": "arietem/gsm8k_pot",
