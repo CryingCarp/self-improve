@@ -6,30 +6,31 @@ from pydantic import Field
 
 _ = load_dotenv(find_dotenv())
 
-proxies = {
-	'http': 'http://127.0.0.1:7897',
-	'https': 'http://127.0.0.1:7897',  # 如果需要 HTTPS 代理
-}
-
 class GoogleSearchTool(BaseTool):
 	cache: dc.Cache = Field(default_factory=lambda: dc.Cache(".cache/google_search_tool"))
 	google: GoogleSearchAPIWrapper = Field(default_factory=lambda: GoogleSearchAPIWrapper(k=1))
 	def __init__(self, name: str = "google_search",
 				 description: str = "A search engine. useful for when you need to answer questions about current events. Input should be a search query. ",):
 		super().__init__(name=name, description=description)
-
-	def _run(self, query: str) -> dict:
+	
+	def _run(self, query: str) -> dict | str:
+		result = {"title": "", "snippet": ""}
 		if query in self.cache:
-			return self.cache[query]
+			cached_result = self.cache[query]
 		else:
-			result = self.google.results(query=query, num_results=1)[-1]
-			self.cache[query] = result
+			try:
+				cached_result = self.google.results(query=query, num_results=1)[-1]
+				self.cache[query] = cached_result
+			except Exception as e:
+				print(str(e))
+				return "No results found"
+		result.update({k: v for k, v in cached_result.items() if k in result})
 		return result
 
 
 def main():
 	google_search = GoogleSearchTool()
-	query = "what is the capital of france"
+	query = "What government position was held by the woman who portrayed Corliss Archer in the film Kiss and Tell"
 	result = google_search.run(query)
 	print(result)
 
