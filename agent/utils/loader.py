@@ -145,7 +145,8 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 			"tabmwp": "arietem/tabmwp_critic",
 			"hotpot_qa": "arietem/hotpot_qa_critic",
 			"ambig_qa": "arietem/ambig_qa_critic",
-			"trivia_qa": "arietem/trivia_qa_critic"
+			"trivia_qa": "arietem/trivia_qa_critic",
+			"toxicity": "arietem/toxicity_critic"
 		}
 	else:
 		dataset_prompts: dict = {
