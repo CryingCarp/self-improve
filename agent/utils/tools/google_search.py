@@ -26,6 +26,9 @@ class GoogleSearchTool(BaseTool):
 				return "No results found"
 		result.update({k: v for k, v in cached_result.items() if k in result})
 		return result
+	
+	async def _arun(self, query: str) -> dict | str:
+		return self._run(query=query)
 
 
 def main():
