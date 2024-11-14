@@ -1,12 +1,12 @@
+import numexpr as ne
 from langchain_core.tools import tool, ToolException
 from typing_extensions import Annotated
-import numexpr as ne
 
 
 @tool
 def calculator(expression: Annotated[str, "The the mathematical expression you want to evaluate."]) -> str:
-    """Useful when you need to calculate the value of a mathematical expression, including basic arithmetic
-    operations. Use this tool for math operations. Input should strictly follow the numuxpr syntax."""
+    """Useful when you need to calculate the value of a mathematical expression, including basic arithmetic \
+operations. Use this tool for math operations. Input should strictly follow the numuxpr syntax."""
 
     try:
         result = ne.evaluate(expression).item()

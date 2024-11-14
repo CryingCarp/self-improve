@@ -1,6 +1,6 @@
 import func_timeout
-from typing_extensions import Annotated
 from langchain_core.tools import tool, ToolException
+from typing_extensions import Annotated
 
 
 @tool()
@@ -8,8 +8,8 @@ def python_interpreter(
     code_string: Annotated[str, "The code string you want to execute."],
     variable: Annotated[str, "The value of the variable you want to get after the code execution."]
 ) -> str:
-    """Useful when you need to execute a code and get the value of the variables. Use this tool for code execution.
-    This tool will return the code execution result and final value of the variable you want to get."""
+    """Useful when you need to execute a code and get the value of the variables. Use this tool for code execution.\
+This tool will return the code execution result and final value of the variable you want to get."""
     try:
         report, answer = func_timeout.func_timeout(timeout=3, func=execute, args=(code_string, variable))
         return f"{report}\nThe final value of the variable <{variable}> is: {answer}."

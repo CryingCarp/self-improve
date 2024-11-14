@@ -1,68 +1,20 @@
-from pydantic import Field
-from langchain_core.tools import BaseTool
-from langchain_community.utilities import BingSearchAPIWrapper, BraveSearchWrapper, WikipediaAPIWrapper, GoogleSerperAPIWrapper
-from langchain_community.tools import WikipediaQueryRun, TavilySearchResults
-from langchain_community.tools.wikidata.tool import WikidataAPIWrapper, WikidataQueryRun
-import requests
-
-import numexpr as ne
-from langchain_experimental.utilities import PythonREPL
-
-from googleapiclient import discovery
-from azure.core.credentials import AzureKeyCredential
-from azure.ai.contentsafety.models import TextCategory, AnalyzeTextOptions
-from azure.ai.contentsafety import ContentSafetyClient
-from azure.core.exceptions import HttpResponseError
-
-from bs4 import BeautifulSoup
+import os
 
 import diskcache as dc
-import os
+from azure.ai.contentsafety import ContentSafetyClient
+from azure.ai.contentsafety.models import TextCategory, AnalyzeTextOptions
+from azure.core.credentials import AzureKeyCredential
+from azure.core.exceptions import HttpResponseError
+from bs4 import BeautifulSoup
 from dotenv import load_dotenv, find_dotenv
+from googleapiclient import discovery
+from langchain_community.tools import TavilySearchResults
+from langchain_community.utilities import BraveSearchWrapper
+from langchain_core.tools import BaseTool
+from pydantic import Field
 
 _ = load_dotenv(find_dotenv())
 
-from .python_interpreter import python_interpreter
-from .calculator import calculator
-
-
-class GoogleSearchTool(BaseTool):
-    cache = Field(init=True)
-    google = Field(init=True)
-    def __init__(self, name: str = "google_search", description: str = "A search engine. useful for when you need to answer questions about current events. Input should be a search query. ",
-                  cache_dir: str = ".cache/google_search_tool"):
-        super().__init__(name=name, description=description, cache_dir=cache_dir)
-        self.cache = dc.Cache(cache_dir)
-        self.google = GoogleSerperAPIWrapper()
-
-    def _run(self, query: str) -> str:
-        if query in self.cache:
-            return self.cache[query]
-        else:
-            result = self.google.run(query=query)
-            self.cache[query] = result
-        return result
-
-class BingSearchTool(BaseTool):
-    cache = Field(init=True)
-    bing = Field(init=True)
-    def __init__(self, name: str = "bing_search", description: str = "A search engine. useful for when you need to answer questions about current events. Input should be a search query. ",
-                 cache_dir: str = ".cache/bing_search_tool"):
-        super().__init__(name=name, description=description, cache_dir=cache_dir)
-        self.cache = dc.Cache(cache_dir)
-        self.bing = BingSearchAPIWrapper()
-
-    def _run(self, query: str) -> str:
-        if query in self.cache:
-            return self.cache[query]
-        else:
-            results = self.bing.results(query=query, num_results=1)
-            for result in results:
-                result["snippet"] = BeautifulSoup(result["snippet"], "html.parser").get_text()
-                result["title"] = BeautifulSoup(result["title"], "html.parser").get_text()
-                result.pop("link")
-            self.cache[query] = results
-        return results
     
 class BraveSearchTool(BaseTool):
     cache = Field(init=True)
@@ -85,128 +37,6 @@ class BraveSearchTool(BaseTool):
                 result.pop("link")
             self.cache[query] = results
         return results
-
-class WikidataTool(WikidataQueryRun):
-    name = "wikidata"
-
-    cache = Field(init=True)
-
-    def __init__(self, api_wrapper: WikidataAPIWrapper = WikidataAPIWrapper(), 
-                 cache_dir: str = ".cache/wikidata_tool",
-                 description: str = """Wrapper around the Wikidata API.
-                                    This wrapper will use the Wikibase APIs to conduct searches and
-                                    fetch item content. Always remember that the input to the Wikidata API should be a single phrase or entity!
-                                    """):
-        super().__init__(api_wrapper=api_wrapper)
-        self.cache = dc.Cache(cache_dir)
-
-    def _run(self, query: str) -> str:
-        if query in self.cache:
-            return self.cache[query]
-        
-        results = super()._run(query)
-
-        self.cache[query] = results
-        
-        return results
-
-class WikipediaTool(WikipediaQueryRun):
-    name = "wikipedia"
-
-    cache = Field(init=True)
-
-    def __init__(self, api_wrapper: WikipediaAPIWrapper = WikipediaAPIWrapper(top_k_results=1), cache_dir: str = ".cache/wikipedia_tool"):
-        super().__init__(api_wrapper=api_wrapper)
-        self.cache = dc.Cache(cache_dir)
-
-    def _run(self, query: str) -> str:
-        if query in self.cache:
-            return self.cache[query]
-        
-        results = super()._run(query)
-
-        self.cache[query] = results
-        
-        return results
-
-
-class GoogleKnowledgeGraphTool(BaseTool):
-    name = "google_knowledge_graph"
-    description = (
-        "This tool searches for entities in the Google Knowledge Graph. "
-        "It provides information about people, places, things, and concepts. "
-        "Useful when you need to get information about a specific entity. "
-        "Input should be an entity name."
-    )
-    api_key: str = Field(..., description="Google Knowledge Graph Search API key")
-    cache = Field(init=True)
-
-    def __init__(self, api_key: str, cache_dir: str = ".cache/google_knowledge_graph_tool"):
-        super().__init__(api_key=api_key)
-        self.cache = dc.Cache(cache_dir)
-
-    def _run(self, query: str, limit: int = 1) -> str:
-        if query in self.cache:
-            return self.cache[query]
-
-        service_url = "https://kgsearch.googleapis.com/v1/entities:search"
-        params = {
-            "query": query,
-            "limit": limit,
-            "indent": True,
-            "key": self.api_key,
-        }
-
-        try:
-            response = requests.get(service_url, params=params)
-            response.raise_for_status()  # Raise an exception for HTTP errors
-        except requests.RequestException as e:
-            return f"Failed to retrieve data: {str(e)}"
-
-        data = response.json()
-        self.cache[query] = data
-        return data
-
-    def _format_results(self, data: dict) -> str:
-        results = data.get("itemListElement", [])
-        formatted_results = []
-
-        for element in results:
-            result = element.get("result", {})
-            name = result.get("name", "N/A")
-            score = element.get("resultScore", 0)
-            formatted_results.append(f"{name} ({score})")
-
-        return "\n".join(formatted_results) if formatted_results else "No results found."
-
-
-class CalculatorTool(BaseTool):
-    name = "calculator"
-    description = ("Useful when you need to calculate the value of a mathematical expression, including basic arithmetic operations. "
-                   "Use this tool for math operations. "
-                   "Input should strictly follow the numuxpr syntax. ")
-
-    def _run(self, expression: str):
-      try:
-        result = ne.evaluate(expression).item()
-        return f"The result of the expression of <{expression}> is: {result}."
-      except Exception as e:
-        # return "This is not a numexpr valid syntax. Try a different syntax."
-        return f"Error in calculation: {str(e)}"
-
-
-class PythonREPLTool(BaseTool):
-    name = "python_repl"
-    description = ("A Python shell. Use this to execute python code. It could also be used as a calculator. "
-                   "Input should be a valid python code. "
-                   "If you want to see the output of a value, you should print it out with `print(...)`.")
-
-    def _run(self, code: str) -> str:
-        try:
-            result = PythonREPL().run(code)
-            return result
-        except Exception as e:
-            return f"Error: {str(e)}"
 
 
 class PerspectiveTool(BaseTool):
@@ -328,15 +158,9 @@ class TavilySearch(BaseTool):
 
 def construct_tools():
     return [
-        GoogleSearchTool(),
         TavilySearch(),
-        BingSearchTool(),
         BraveSearchTool(api_key=os.environ.get("BRAVE_API_KEY")),
-        WikidataTool(),
         WikipediaTool(),
-        GoogleKnowledgeGraphTool(api_key=os.environ.get("GOOGLE_API_KEY")),
-        PythonREPLTool(),
-        CalculatorTool(),
         PerspectiveTool(),
         AzureContentModerationTool(endpoint=os.environ.get("AZURE_CONTENT_SAFETY_ENDPOINT"), key=os.environ.get("AZURE_CONTENT_SAFETY_KEY"))
     ]
@@ -368,8 +192,6 @@ def main():
     # print(brave.run("Louisville Cardinals basketball January 2 2012 game summary and venue"))
     # azure_content_moderation = AzureContentModerationTool(endpoint=os.environ.get("AZURE_CONTENT_SAFETY_ENDPOINT"), key=os.environ.get("AZURE_CONTENT_SAFETY_KEY"))
     # print(azure_content_moderation.run("I hate you"))
-    # wikidata = WikidataTool()
-    # print(wikidata.run("University of Louisville game January 2, 2012"))
     # wikipedia = WikipediaTool()
     # print(wikipedia.run("2011–12 Louisville Cardinals men's basketball team"))
     # google_knowledge_graph = GoogleKnowledgeGraphTool(api_key=os.environ.get("GOOGLE_API_KEY"))

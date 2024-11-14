@@ -33,7 +33,7 @@ class GoogleSearchTool(BaseTool):
 
 def main():
 	google_search = GoogleSearchTool()
-	query = "What government position was held by the woman who portrayed Corliss Archer in the film Kiss and Tell"
+	query = "Kiss and Tell 1945 cast"
 	result = google_search.run(query)
 	print(result)
 
