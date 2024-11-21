@@ -24,6 +24,7 @@ class GoogleKnowledgeGraphTool(BaseTool):
 	cache: dc.Cache = Field(init=True, default_factory=lambda: dc.Cache(".cache/google_knowledge_graph_tool"))
 	session: aiohttp.ClientSession = None  # Add this to store the session
 	limiter: AsyncLimiter = None
+	service_url: str = "https://kgsearch.googleapis.com/v1/entities:search"
 	
 	def __init__(self, api_key: str, cache_dir: str = ".cache/google_knowledge_graph_tool"):
 		super().__init__(api_key=api_key)
@@ -37,7 +38,6 @@ class GoogleKnowledgeGraphTool(BaseTool):
 		if query in self.cache:
 			return self.cache[query]
 		
-		service_url = "https://kgsearch.googleapis.com/v1/entities:search"
 		params = {
 			"query": query,
 			"limit": limit,
@@ -46,7 +46,7 @@ class GoogleKnowledgeGraphTool(BaseTool):
 		}
 		
 		try:
-			response = requests.get(service_url, params=params)
+			response = requests.get(self.service_url, params=params)
 			response.raise_for_status()  # Raise an exception for HTTP errors
 		except requests.RequestException as e:
 			print(f"Failed to retrieve data: {str(e)}")
@@ -60,7 +60,6 @@ class GoogleKnowledgeGraphTool(BaseTool):
 		if query in self.cache:
 			return self.cache[query]
 		
-		service_url = "https://kgsearch.googleapis.com/v1/entities:search"
 		params = {
 			"query": query,
 			"limit": limit,
@@ -70,7 +69,7 @@ class GoogleKnowledgeGraphTool(BaseTool):
 		
 		try:
 			async with self.limiter:
-				async with self.session.get(service_url, params=params) as response:
+				async with self.session.get(self.service_url, params=params) as response:
 					response.raise_for_status()  # Raise an exception for HTTP errors
 					data = await response.json()
 		except aiohttp.ClientError as e:
@@ -95,9 +94,6 @@ class GoogleKnowledgeGraphTool(BaseTool):
 
 async def main():
 	tool = GoogleKnowledgeGraphTool(api_key=os.environ.get("GOOGLE_API_KEY"))
-	
-	# Define a query that you will test
-	query = "Python programming language"
 	
 	# Define how many requests you want to test
 	num_requests = 10
