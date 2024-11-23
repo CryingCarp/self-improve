@@ -1,6 +1,5 @@
 import asyncio
 import os
-from pprint import pprint
 from typing import List, Dict
 
 import aiohttp
@@ -87,7 +86,11 @@ class GoogleSearchTool(BaseTool):
 	
 	async def _agoogle_search_results(self, query: str, nums: int = 3, ) -> List[dict]:
 		if query in self.cache:
-			data: List = self.cache[query]
+			try:
+				data: List = self.cache[query]
+			except Exception as e:
+				print(f"Failed to retrieve data from cache: {str(e)}")
+				data = []
 		else:
 			params = {
 				"q": query,
@@ -124,26 +127,26 @@ class GoogleSearchTool(BaseTool):
 async def main():
 	# 创建 GoogleSearchTool 实例
 	tool = GoogleSearchTool()
-	from datetime import datetime
 	
-	async def test_query(query_id):
-		"""测试单次查询"""
-		start_time = datetime.now()
-		print(f"[{start_time}] Query-{query_id} started")
-		try:
-			result = await tool.arun(f"test query {query_id}")
-			end_time = datetime.now()
-			pprint(f"[{end_time - start_time}] Query-{query_id} Completed: {result}")
-		except Exception as e:
-			print(f"Query-{query_id} failed: {str(e)}")
-	
-	# 模拟 100 次并发调用
-	num_tasks = 100
-	tasks = [test_query(i) for i in range(num_tasks)]
-	
-	# 等待所有任务完成
-	await asyncio.gather(*tasks)
-	
+	# async def test_query(query_id):
+	# 	"""测试单次查询"""
+	# 	start_time = datetime.now()
+	# 	print(f"[{start_time}] Query-{query_id} started")
+	# 	try:
+	# 		result = await tool.arun(f"test query {query_id}")
+	# 		end_time = datetime.now()
+	# 		pprint(f"[{end_time - start_time}] Query-{query_id} Completed: {result}")
+	# 	except Exception as e:
+	# 		print(f"Query-{query_id} failed: {str(e)}")
+	#
+	# # 模拟 100 次并发调用
+	# num_tasks = 100
+	# tasks = [test_query(i) for i in range(num_tasks)]
+	#
+	# # 等待所有任务完成
+	# await asyncio.gather(*tasks)
+	result = await tool.arun("Shirley Temple government positions")
+	print(result)
 	# 确保关闭 session
 	await tool.close()
 

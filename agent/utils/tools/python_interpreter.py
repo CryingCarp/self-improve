@@ -4,15 +4,14 @@ from typing_extensions import Annotated
 
 
 @tool()
-def python_interpreter(
+async def python_interpreter(
     code_string: Annotated[str, "The code string you want to execute."],
-    variable: Annotated[str, "The value of the variable you want to get after the code execution."]
 ) -> str:
-    """Useful when you need to execute a code and get the value of the variables. Use this tool for code execution.\
-This tool will return the code execution result and final value of the variable you want to get."""
+    """Useful when you need to execute a code and get the value of the variables <answer>. Use this tool for code execution.\
+This tool will return the code execution result and final value of the variable <answer>. Input should be pure python code string."""
     try:
-        report, answer = func_timeout.func_timeout(timeout=3, func=execute, args=(code_string, variable))
-        return f"{report}\nThe final value of the variable <{variable}> is: {answer}."
+        report, answer = func_timeout.func_timeout(timeout=3, func=execute, args=(code_string, "answer"))
+        return f"{report}\nThe final value of the variable <answer> is: {answer}."
     except Exception as e:
         raise ToolException(f"Error in code execution: {str(e)}.\nPlease check the code.")
 

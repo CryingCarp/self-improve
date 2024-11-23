@@ -4,7 +4,7 @@ from typing_extensions import Annotated
 
 
 @tool
-def calculator(expression: Annotated[str, "The the mathematical expression you want to evaluate."]) -> str:
+async def calculator(expression: Annotated[str, "The the mathematical expression you want to evaluate."]) -> str:
     """Useful when you need to calculate the value of a mathematical expression, including basic arithmetic \
 operations. Use this tool for math operations. Input should strictly follow the numuxpr syntax."""
 

@@ -28,7 +28,6 @@ class BingSearchTool(BaseTool):
 			for result in results:
 				result["snippet"] = BeautifulSoup(result["snippet"], "html.parser").get_text()
 				result["title"] = BeautifulSoup(result["title"], "html.parser").get_text()
-				result.pop("link")
 			self.cache[query] = results
 		return results
 	
@@ -40,7 +39,6 @@ class BingSearchTool(BaseTool):
 			for result in results:
 				result["snippet"] = BeautifulSoup(result["snippet"], "html.parser").get_text()
 				result["title"] = BeautifulSoup(result["title"], "html.parser").get_text()
-				result.pop("link")
 			self.cache[query] = results
 		return results
 
