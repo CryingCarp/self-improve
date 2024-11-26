@@ -1,5 +1,6 @@
-import string
 import json
+import re
+import string
 from collections import Counter
 
 
@@ -50,7 +51,6 @@ def get_end_index(tokens, end_tokens=["\n", "<|endoftext|>"], verbose=True):
 
 
 def normalize_answer(s):
-
     def replace_ordinals(s):
         ordinal_map = {
             "first": "1",
@@ -68,27 +68,38 @@ def normalize_answer(s):
             'seven': '7',
             'eight': '8',
             'nine': '9',
+            # more as needed
         }
         for ordinal, number in ordinal_map.items():
             s = s.replace(ordinal, number)
         return s
-
+    
     def normalize_yes_no(s):
         mp = {
             "true": "yes",
             "false": "no",
         }
         return mp.get(s, s)
-
+    
+    def remove_rank(text):
+        return re.sub(r"(?<=\w)(st|nd|rd|th)\b", "", text)
+    
+    def remove_articles(text):
+        if len(text.split(" ")) > 1:
+            text = re.sub(r"\b(a|an|the)\b", " ", text)
+        # remove 's' in the end of word
+        text = " ".join([t.rstrip("s") for t in text.split(" ")])
+        return text
+    
     def white_space_fix(text):
         return " ".join(text.split())
-
+    
     def remove_punc(text):
         exclude = set(string.punctuation + "".join([u"‘", u"’", u"´", u"`", u"–"]))
         for c in exclude:
             text = text.replace(c, " ")
         return text
-
+    
     def lower(text):
         return text.lower()
     
@@ -98,9 +109,8 @@ def normalize_answer(s):
         if a[-2:] == ".0":
             a = a[:-2]
         return a
-
-    # return normalize_yes_no(remove_rank(replace_ordinals(white_space_fix(remove_articles(remove_punc(lower(s)))))))
-    return normalize_yes_no(normalize_number(replace_ordinals(white_space_fix(remove_punc(lower(s))))))
+    
+    return normalize_yes_no(remove_rank(replace_ordinals(white_space_fix(remove_articles(remove_punc(lower(s)))))))
 
 
 def em_f1_score(prediction, ground_truth):
