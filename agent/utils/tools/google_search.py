@@ -1,5 +1,7 @@
 import asyncio
+import logging
 import os
+import time
 from typing import List, Dict
 
 import aiohttp
@@ -13,45 +15,64 @@ from pydantic import Field
 _ = load_dotenv(find_dotenv())
 
 class GoogleSearchTool(BaseTool):
-	cache: dc.Cache = Field(default_factory=lambda: dc.Cache(".cache/google_search_tool"))
+	cache: dc.Cache = Field(default_factory=lambda: dc.Cache(
+		"/Users/ariete/Projects/self-improve/agent/inference/.cache/google_search_tool"))
 	google: GoogleSearchAPIWrapper = Field(default_factory=lambda: GoogleSearchAPIWrapper(k=1))
-	session: aiohttp.ClientSession = None  # Add this to store the session
 	limiter: AsyncLimiter = None
 	google_cse_id: str = None
 	google_api_key: str = None
 	service_url: str = "https://www.googleapis.com/customsearch/v1"
-	
+
 	def __init__(self, name: str = "google_search",
 				 description: str = "A search engine. useful for when you need to answer questions about current events. Input should be a search query. ",):
 		super().__init__(name=name, description=description)
 		self.google_api_key = os.getenv("GOOGLE_API_KEY")
-		
 		self.google_cse_id = os.getenv("GOOGLE_CSE_ID")
-		self.session = aiohttp.ClientSession()
-		self.limiter = AsyncLimiter(max_rate=200, time_period=60)  # 每秒最多200次请求
+		self.limiter = AsyncLimiter(max_rate=2, time_period=2)  # 每秒最多80次请求
 	
-	def _run(self, query: str) -> dict | str:
-		result = {"title": "", "snippet": ""}
+	def _run(self, query: str) -> list[dict]:
+		"""
+		Run query through GoogleSearch and return metadata.
+		
+		Args:
+			query: The query to search for.
+			
+		Returns:
+			list[dict]: A list of dictionaries with the following keys:
+				snippet - The description of the result.
+				title - The title of the result.
+				link - The link to the result.
+				Or a list containing a single dictionary with the key "Result" if no results are found.
+		"""
 		if query in self.cache:
-			cached_result = self.cache[query]
+			return self.cache[query]
 		else:
 			try:
-				cached_result = self.google.results(query=query, num_results=1)[-1]
-				self.cache[query] = cached_result
+				result: list = self.google.results(query=query, num_results=3)
+				self.cache[query] = result
 			except Exception as e:
 				print(str(e))
-				return "No results found"
-		result.update({k: v for k, v in cached_result.items() if k in result})
+				return [{"Result": "No results found"}]
 		return result
 	
-	async def _arun(self, query: str) -> str | list[dict]:
+	async def _arun(self, query: str, num_results: int = 3) -> list[dict]:
+		"""
+		Asynchronously fetch search results from Google Search.
+		
+		Args:
+			query: The query to search for.
+			num_results: The number of results to return.
+		
+		Returns:
+			str | list[dict]: A list of dictionaries containing search results".
+		"""
 		try:
-			result = await self.aresults(query=query, num_results=3)
+			result = await self.aresults(query=query, num_results=num_results)
 		except Exception as e:
-			print("_arun Exception", str(e))
-			return "No results found"
+			print(f"Failed to retrieve data from Google Search: {str(e)}")
+			return [{"title": "No results found", "snippet": "", "link": ""}]
 		return result
-	
+
 	async def aresults(
 			self,
 			query: str,
@@ -70,9 +91,12 @@ class GoogleSearchTool(BaseTool):
 				link - The link to the result.
 		"""
 		metadata_results = []
-		results: List = await self._agoogle_search_results(query, nums=num_results)
+		try:
+			results: List = await self._agoogle_search_results(query, nums=num_results)
+		except Exception as e:
+			raise e
 		if len(results) == 0:
-			return [{"Result": "No good Google Search Result was found"}]
+			return [{"title": "No results found", "snippet": "", "link": ""}]
 		for result in results:
 			metadata_result = {
 				"title": result["title"],
@@ -81,16 +105,25 @@ class GoogleSearchTool(BaseTool):
 			if "snippet" in result:
 				metadata_result["snippet"] = result["snippet"]
 			metadata_results.append(metadata_result)
-		
+
 		return metadata_results
-	
+
 	async def _agoogle_search_results(self, query: str, nums: int = 3, ) -> List[dict]:
+		"""
+		Asynchronously fetch search results from Google Search.
+		
+		Args:
+			query: The query to search for.
+			nums: The number of results to return.
+		
+		Returns:
+			List[dict]: A list of dictionaries containing search results.
+			
+		Raises:
+			Exception: If the maximum number of retries is reached or there is an error fetching the results.
+			"""
 		if query in self.cache:
-			try:
-				data: List = self.cache[query]
-			except Exception as e:
-				print(f"Failed to retrieve data from cache: {str(e)}")
-				data = []
+			return self.cache[query]
 		else:
 			params = {
 				"q": query,
@@ -98,57 +131,116 @@ class GoogleSearchTool(BaseTool):
 				"key": self.google_api_key,
 				"num": nums,
 			}
+			retries = 0
+			async with self.limiter:
+				async with aiohttp.ClientSession() as session:
+					while retries < 3:
+						try:
+							async with session.get(self.service_url, params=params) as response:
+								# 处理成功的请求，返回数据
+								response.raise_for_status()  # 如果有其他HTTP错误（如500等），会抛出异常
+								data = await response.json()
+								data = data.get("items", [])
+								# 缓存并返回结果
+								self.cache[query] = data
+								return data
+						
+						except asyncio.TimeoutError:
+							retries += 1
+							logging.warning(f"Timeout error occurred, retrying {retries}...")
+							await asyncio.sleep(2 ** retries)  # 指数回退
+						except aiohttp.ClientError as e:
+							retries += 1
+							logging.warning(f"Client error occurred: {str(e)}, retrying {retries}...")
+							await asyncio.sleep(2 ** retries)
+						except Exception as e:
+							retries += 1
+							logging.error(f"Unexpected error occurred: {str(e)}, retrying {retries}...")
+							await asyncio.sleep(2 ** retries)
 			
-			try:
-				async with self.limiter:
-					async with self.session.get(self.service_url, params=params) as response:
-						response.raise_for_status()  # Raise an exception for HTTP errors
-						data: Dict = await response.json()
-			except aiohttp.ClientError as e:
-				print(f"Failed to retrieve data: {str(e)}")
-				raise e
-			data = data.get("items", [])
-			self.cache[query] = data
-		return data
-	
-	# Ensure the session is closed when the object is destroyed
-	async def close(self):
-		if self.session:
-			await self.session.close()
-	
-	# Optional: handle cleanup for session on deletion
-	def __del__(self):
-		# Ensure the session is closed when the object is deleted
-		if self.session:
-			import asyncio
-			asyncio.create_task(self.close())
+			# 达到最大重试次数后抛出RateLimitExceededError
+			raise Exception(f"Rate limit exceeded or persistent error after {retries} retries.")
 
 
-async def main():
-	# 创建 GoogleSearchTool 实例
-	tool = GoogleSearchTool()
+# class GoogleSearchTool(BaseTool):
+# 	name: str = "google_search"
+# 	description: str = (
+# 		"A wrapper around Google Search. "
+# 		"Useful for when you need to answer questions about current events. "
+# 		"Input should be a search query."
+# 	)
+# 	api_wrapper: GoogleSearchAPIWrapper
+# 	cache: dc.Cache = Field(default_factory=lambda: dc.Cache(".cache/google_search_tool"))
+# 	limiter: AsyncLimiter = None
+#
+# 	def __init__(self, **kwargs):
+# 		super().__init__(**kwargs)
+# 		self.limiter = AsyncLimiter(max_rate=2, time_period=2)  # 每秒最多1次请求
+#
+# 	def _run(self, query: str, run_manager=None,) -> dict | str:
+# 		if query in self.cache:
+# 			return self.cache[query]
+# 		else:
+# 			try:
+# 				result = self.api_wrapper.run(query=query)
+# 				self.cache[query] = result
+# 				return result
+# 			except Exception as e:
+# 				print("GoogleSearchTool._run", str(e))
+# 				return "Google Search Error"
+#
+# 	async def _arun(self, query: str) -> str | list[dict]:
+# 		if query in self.cache:
+# 			return self.cache[query]
+# 		async with self.limiter:
+# 			current_time = time.strftime("%H:%M:%S", time.localtime())
+# 			print(current_time)
+# 			result = await asyncio.to_thread(self.api_wrapper.run, query)
+# 			self.cache[query] = result
+# 		return result
+#
+# 	async def aresults(self, query: str) -> str | list[dict]:
+# 		if query in self.cache:
+# 			return self.cache[query]
+# 		async with self.limiter:
+# 			result = await asyncio.to_thread(self.api_wrapper.results, query, 3, None)
+# 			self.cache[query] = result
+# 		return result
+
+
+async def async_main():
+	# 假设 GoogleSearchTool 已经被正确定义
+	google_search_tool = GoogleSearchTool()
 	
-	# async def test_query(query_id):
-	# 	"""测试单次查询"""
-	# 	start_time = datetime.now()
-	# 	print(f"[{start_time}] Query-{query_id} started")
-	# 	try:
-	# 		result = await tool.arun(f"test query {query_id}")
-	# 		end_time = datetime.now()
-	# 		pprint(f"[{end_time - start_time}] Query-{query_id} Completed: {result}")
-	# 	except Exception as e:
-	# 		print(f"Query-{query_id} failed: {str(e)}")
-	#
-	# # 模拟 100 次并发调用
-	# num_tasks = 100
-	# tasks = [test_query(i) for i in range(num_tasks)]
-	#
-	# # 等待所有任务完成
-	# await asyncio.gather(*tasks)
-	result = await tool.arun("Shirley Temple government positions")
+	async def test_arun(index: int):
+		query = f"Test Query {index}"  # 每个任务的查询稍有不同
+		print(f"Task {index} started.")
+		result = await google_search_tool._arun(query)
+		print(f"Task {index} completed with result: {result}")
+		return result
+	
+	start_time = time()
+	
+	# 创建多个任务以测试并发
+	num_tasks = 20  # 总任务数
+	tasks = [test_arun(i) for i in range(num_tasks)]
+	
+	# 使用 asyncio.gather 执行所有任务
+	results = await asyncio.gather(*tasks)
+	
+	end_time = time()
+	elapsed_time = end_time - start_time
+	print(f"Executed {num_tasks} tasks in {elapsed_time:.2f} seconds.")
+	return results
+
+
+def main():
+	google_search_tool = GoogleSearchTool()
+	query = "Test Query"
+	result = google_search_tool.run(query)
 	print(result)
-	# 确保关闭 session
-	await tool.close()
 
-if __name__ == '__main__':
-	asyncio.run(main())
+
+if __name__ == "__main__":
+	# asyncio.run(async_main())
+	main()

@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from time import time
 
 import diskcache as dc
 from aiolimiter import AsyncLimiter
@@ -163,52 +163,76 @@ _ = load_dotenv(find_dotenv())
 class WikidataTool(WikidataQueryRun):
 	name: str = "wikidata"
 	description: str = "A wrapper around Wikidata. Useful for when you need to answer general questions about people, places, companies, facts, historical events, or other subjects. Input should be the exact name of the item you want information about or a Wikidata QID."
-	limiter: AsyncLimiter = AsyncLimiter(max_rate=200, time_period=60)
-	cache: dc.Cache = dc.Cache(".cache/wikidata_tool")
+	limiter: AsyncLimiter = AsyncLimiter(max_rate=2, time_period=2)
+	cache: dc.Cache = dc.Cache("/Users/ariete/Projects/self-improve/agent/inference/.cache/wikidata_tool")
 	
 	def _run(self, query: str, run_manager=None) -> str:
 		if query in self.cache:
 			return self.cache[query]
-		results = self.api_wrapper.run(query)
-		self.cache[query] = results
-		return results
+		try:
+			results = self.api_wrapper.run(query)
+			self.cache[query] = results
+			return results
+		except Exception as e:
+			print(f"WikiData Failed: {e}")
+			return f"Error: {e}"
 	
 	async def _arun(self, query: str) -> str:
 		if query in self.cache:
 			return self.cache[query]
-		try:
-			async with self.limiter:
-				results = await asyncio.to_thread(self.api_wrapper.run, query)
-				self.cache[query] = results
-		except Exception as e:
-			print(e)
-			return f"Error: {e}"
+		retries = 0
+		while retries < 3:
+			try:
+				async with self.limiter:
+					results = await asyncio.to_thread(self.api_wrapper.run, query)
+					self.cache[query] = results
+					return results
+			except Exception as e:
+				retries += 1
+				if retries >= 3:
+					print(f"WikiData Failed after 3 retries: {e}")
+					raise RuntimeError(f"Failed after 3 retries: {e}") from e
+				await asyncio.sleep(2 ** retries)
+
+
+async def async_main():
+	# 假设已经定义了 WikidataTool 类，并且 api_wrapper 和相关方法是正确定义的
+	async def test_arun(i):
+		query = f"Item {i}"  # 构造一个示例查询
+		results = await wikidata_tool._arun(query)
 		return results
+	
+	# 创建 WikidataTool 实例
+	wikidata_tool = WikidataTool(api_wrapper=WikidataAPIWrapper())  # 假设您的 API 包装器已经定义
+	
+	num_tasks = 20  # 测试的并发任务数
+	queries = [f"Item {i}" for i in range(1040, 1060)]
+	
+	start_time = time()
+	
+	# 创建任务列表
+	tasks = [test_arun(queries[i]) for i in range(len(queries))]
+	
+	# 执行所有任务
+	results = await asyncio.gather(*tasks)
+	
+	end_time = time()
+	
+	# 计算并输出执行时间
+	elapsed_time = end_time - start_time
+	print(f"Executed {num_tasks} tasks in {elapsed_time:.2f} seconds.")
+	
+	# 输出部分结果进行检查
+	for result in results:
+		print(result)
 
 
-async def main():
-	# 实例化 WikidataTool
-	tool = WikidataTool(api_wrapper=WikidataAPIWrapper())
-	
-	# 测试输入列表
-	queries = [
-		"Python programming language",
-		"Artificial intelligence",
-		"Alan Turing",
-		"Machine learning",
-		"Natural language processing"
-	]
-	
-	async def test_query(query):
-		start_time = datetime.now()
-		print(f"[{start_time}] Querying: {query}")
-		result = await tool._arun(query)
-		end_time = datetime.now()
-		print(f"[{end_time}] Result for {query}:\n{result}\n")
-		print(f"Time taken: {(end_time - start_time).total_seconds()} seconds\n")
-	
-	# 并行执行多个查询，验证 limiter 是否生效
-	await asyncio.gather(*(test_query(query) for query in queries))
+def main():
+	wikidata_tool = WikidataTool(api_wrapper=WikidataAPIWrapper())  # 假设您的 API 包装器已经定义
+	query = "Donald Trump"
+	results = wikidata_tool.run(query)
+	print(results)
 
 if __name__ == "__main__":
-	asyncio.run(main())
+	asyncio.run(async_main())
+# main()
