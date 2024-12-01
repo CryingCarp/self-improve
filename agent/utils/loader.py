@@ -1,4 +1,4 @@
-from datasets import load_dataset, DatasetDict
+from datasets import load_dataset, DatasetDict, Dataset
 from dotenv import load_dotenv, find_dotenv
 from langchain import hub
 from langchain_core.prompts import ChatPromptTemplate
@@ -12,19 +12,21 @@ DATASET_NAME: list[str] = [
 	"gsm8k",
 	"tabmwp",
 	"svamp",
-	"toxicity"
+	"toxicity",
+	"gsmhard"
 ]
 
 
-def process_dataset(dataset_name: str) -> DatasetDict:
+def process_dataset(dataset_name: str) -> Dataset:
 	assert dataset_name is not None, "Dataset name is required"
 	# data_file_path: str = f"../../data/raw_data/{dataset_name}.jsonl"
 	# Load dataset
 	# dataset = load_dataset("json", data_files=data_file_path)
 	save_file_path = f"../../data/processed_data/{dataset_name}.jsonl"
 	if dataset_name == "hotpot_qa":
-		raw_dataset: DatasetDict = load_dataset(path='hotpot_qa', name="distractor", split='validation', trust_remote_code=True)
-		updated_dataset: DatasetDict = raw_dataset.map(
+		raw_dataset: Dataset = load_dataset(path='hotpot_qa', name="distractor", split='validation',
+		                                    trust_remote_code=True)
+		updated_dataset: Dataset = raw_dataset.map(
 			lambda example: {
 				"context": "", # type: str
 				"question": example["question"], # type: str
@@ -53,12 +55,12 @@ def process_dataset(dataset_name: str) -> DatasetDict:
 				"answer": sample['answer'] # type: list[str]
 			}
 		
-		raw_dataset: DatasetDict = load_dataset(path='ambig_qa', name="light", split='validation')
-		updated_dataset: DatasetDict = raw_dataset.map(process_example).select_columns(["context", "question", "answer"])
+		raw_dataset: Dataset = load_dataset(path='ambig_qa', name="light", split='validation')
+		updated_dataset: Dataset = raw_dataset.map(process_example).select_columns(["context", "question", "answer"])
 		updated_dataset.to_json(save_file_path)
 	elif dataset_name == "trivia_qa":
-		raw_dataset: DatasetDict = load_dataset(path='trivia_qa', name="rc.nocontext", split='validation')
-		updated_dataset: DatasetDict = raw_dataset.map(
+		raw_dataset: Dataset = load_dataset(path='trivia_qa', name="rc.nocontext", split='validation')
+		updated_dataset: Dataset = raw_dataset.map(
 			lambda example: {
 				"context": "", # type: str
 				"question": example["question"], # type: str
@@ -84,8 +86,8 @@ def process_dataset(dataset_name: str) -> DatasetDict:
 		updated_dataset.to_json(save_file_path)
 		print(f"Saved dataset to {save_file_path}")
 	elif dataset_name == "gsm8k":
-		raw_dataset: DatasetDict = load_dataset(path="gsm8k", name="main", split="test")
-		updated_dataset: DatasetDict = raw_dataset.map(
+		raw_dataset: Dataset = load_dataset(path="gsm8k", name="main", split="test")
+		updated_dataset: Dataset = raw_dataset.map(
 			lambda example: {
 				"context": "", # type: str
 				"question": example["question"], # type: str
@@ -94,21 +96,27 @@ def process_dataset(dataset_name: str) -> DatasetDict:
 		updated_dataset.to_json(save_file_path)
 		print(f"Saved dataset to {save_file_path}")
 	elif dataset_name == "svamp":
-		raw_dataset: DatasetDict = load_dataset(path="svamp")
-		updated_dataset: DatasetDict = raw_dataset.map(
+		raw_dataset: Dataset = load_dataset(path="svamp", split="train")
+		updated_dataset: Dataset = raw_dataset.map(
 			lambda example: {
 				"context": example['Body'], # type: str
 				"question": example["Question"], # type: str
 				"answer": example["Answer"] # type: str
 			})
 	elif dataset_name == "toxicity":
-		raw_dataset: DatasetDict = load_dataset(path="json", data_files="../../data/raw_data/toxicity/test.jsonl", split="train")
-		updated_dataset: DatasetDict = raw_dataset.map(
+		raw_dataset: Dataset = load_dataset(path="json", data_files="../../data/raw_data/toxicity/test.jsonl",
+		                                    split="train")
+		updated_dataset: Dataset = raw_dataset.map(
 			lambda example: {
 				"context": "", # type: str
 				"question": example["prompt"]["text"], # type: str
 				"answer": example["continuation"]["text"] # type: str
 			}).select_columns(["context", "question", "answer"])
+		updated_dataset.to_json(save_file_path)
+		print(f"Saved dataset to {save_file_path}")
+	elif dataset_name == "gsmhard":
+		raw_dataset: Dataset = load_dataset("reasoning-machines/gsm-hard", split="train")
+		updated_dataset: Dataset = raw_dataset.rename_columns({'input': 'question', 'target': 'answer'})
 		updated_dataset.to_json(save_file_path)
 		print(f"Saved dataset to {save_file_path}")
 
@@ -175,7 +183,7 @@ def main():
 	# unique_values = set(dataset["ans_type"])
 	# print(unique_values)
 	# print(dataset)
-	process_dataset("toxicity")
+	process_dataset("gsmhard")
 
 
 if __name__ == '__main__':
