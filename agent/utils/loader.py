@@ -130,6 +130,7 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 	if mode in ["cot", "self-consistency"]:
 		dataset_prompts: dict = {
 			"gsm8k": "arietem/gsm8k_cot",
+			"gsmhard": "arietem/gsm8k_cot",
 			"svamp": "arietem/svamp_cot",
 			"tabmwp": "arietem/tabmwp_cot",
 			"hotpot_qa": "arietem/hotpot_qa_cot",
@@ -139,6 +140,7 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 	elif mode == "direct":
 		dataset_prompts: dict = {
 			"gsm8k": "arietem/gsm8k_direct",
+			"gsmhard": "arietem/gsm8k_cot",
 			"svamp": "arietem/svamp_direct",
 			"tabmwp": "arietem/tabmwp_direct",
 			"hotpot_qa": "arietem/hotpot_qa_direct",
@@ -149,6 +151,7 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 	elif mode == "critic":
 		dataset_prompts: dict = {
 			"gsm8k": "arietem/gsm8k_critic",
+			"gsmhard": "arietem/gsm8k_cot",
 			"svamp": "arietem/svamp_critic",
 			"tabmwp": "arietem/tabmwp_critic",
 			"hotpot_qa": "arietem/hotpot_qa_critic",
@@ -159,6 +162,7 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 	else:
 		dataset_prompts: dict = {
 			"gsm8k": "arietem/gsm8k_pot",
+			"gsmhard": "arietem/gsm8k_cot",
 			"svamp": "arietem/svamp_pot",
 			"tabmwp": "arietem/tabmwp_pot"
 		}
