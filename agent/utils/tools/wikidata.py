@@ -1,5 +1,4 @@
 import asyncio
-from time import time
 
 import diskcache as dc
 from aiolimiter import AsyncLimiter
@@ -117,11 +116,19 @@ _ = load_dotenv(find_dotenv())
 # 			meta={"title": qid, "source": f"https://www.wikidata.org/wiki/{qid}"}
 # 		)
 #
-# 	async def arun(self, query: str) -> str:
-# 		items = await self.async_wikidata_mw.async_search(query=query[:WIKIDATA_MAX_QUERY_LENGTH])
-# 		raise Exception("123")
-# 		docs = [f"Result {item}:\n{(await self._async_item_to_document(item)).page_content}" for item in items[:self.top_k_results] if await self._async_item_to_document(item)]
-# 		return "\n\n".join(docs)[:self.doc_content_chars_max] if docs else "No good Wikidata Search Result was found"
+# 	async def arun(self, query: str, limiter: AsyncLimiter) -> str:
+# 		clipped_query = query[:WIKIDATA_MAX_QUERY_LENGTH]
+# 		with limiter:
+# 			items = await self.async_wikidata_mw.async_search(clipped_query, results=self.top_k_results)
+# 		docs = []
+# 		tasks = [self._async_item_to_document(item) for item in items[: self.top_k_results]]
+# 		results = asyncio.gather(*tasks)
+# 		for doc in results:
+# 			if doc:
+# 				docs.append(f"Result {item}:\n{doc.page_content}")
+# 		if not docs:
+# 			return "No good Wikidata Search Result was found"
+# 		return "\n\n".join(docs)[: self.doc_content_chars_max]
 
 # class WikidataTool(BaseTool):
 # 	name: str = "wikidata"
@@ -162,8 +169,12 @@ _ = load_dotenv(find_dotenv())
 
 class WikidataTool(WikidataQueryRun):
 	name: str = "wikidata"
-	description: str = "A wrapper around Wikidata. Useful for when you need to answer general questions about people, places, companies, facts, historical events, or other subjects. Input should be the exact name of the item you want information about or a Wikidata QID."
-	limiter: AsyncLimiter = AsyncLimiter(max_rate=2, time_period=2)
+	description: str = ("A wrapper around Wikidata. Useful for when you need to answer general questions about people, "
+	                    "places, companies, facts, historical events, or other subjects. Input should be the exact name "
+	                    "of the item you want information about or a Wikidata QID. Output is a structured data object "
+	                    "data object containing fields like Label, Description, Aliases, basic demographics, education, "
+	                    "notable works, political affiliations, family, and other key attributes based on the entity type.")
+	limiter: AsyncLimiter = AsyncLimiter(max_rate=2, time_period=6)
 	cache: dc.Cache = dc.Cache("/Users/ariete/Projects/self-improve/agent/inference/.cache/wikidata_tool")
 	
 	def _run(self, query: str, run_manager=None) -> str:
@@ -199,32 +210,13 @@ async def async_main():
 	# 假设已经定义了 WikidataTool 类，并且 api_wrapper 和相关方法是正确定义的
 	async def test_arun(i):
 		query = f"Item {i}"  # 构造一个示例查询
-		results = await wikidata_tool._arun(query)
+		results = await wikidata_tool._arun("cockney private detective")
 		return results
 	
 	# 创建 WikidataTool 实例
 	wikidata_tool = WikidataTool(api_wrapper=WikidataAPIWrapper())  # 假设您的 API 包装器已经定义
 	
-	num_tasks = 20  # 测试的并发任务数
-	queries = [f"Item {i}" for i in range(1040, 1060)]
-	
-	start_time = time()
-	
-	# 创建任务列表
-	tasks = [test_arun(queries[i]) for i in range(len(queries))]
-	
-	# 执行所有任务
-	results = await asyncio.gather(*tasks)
-	
-	end_time = time()
-	
-	# 计算并输出执行时间
-	elapsed_time = end_time - start_time
-	print(f"Executed {num_tasks} tasks in {elapsed_time:.2f} seconds.")
-	
-	# 输出部分结果进行检查
-	for result in results:
-		print(result)
+	print(await wikidata_tool._arun("cockney private detective"))
 
 
 def main():
@@ -234,5 +226,5 @@ def main():
 	print(results)
 
 if __name__ == "__main__":
-	asyncio.run(async_main())
-# main()
+	# asyncio.run(async_main())
+	main()

@@ -24,7 +24,9 @@ class GoogleSearchTool(BaseTool):
 	service_url: str = "https://www.googleapis.com/customsearch/v1"
 
 	def __init__(self, name: str = "google_search",
-				 description: str = "A search engine. useful for when you need to answer questions about current events. Input should be a search query. ",):
+	             description: str = "A search engine. useful for when you need to answer questions about current events. "
+	                                "Input should be a search query. "
+	                                "Output is the top relevant results including page title and corresponding snippet.", ):
 		super().__init__(name=name, description=description)
 		self.google_api_key = os.getenv("GOOGLE_API_KEY")
 		self.google_cse_id = os.getenv("GOOGLE_CSE_ID")
@@ -238,6 +240,9 @@ def main():
 	google_search_tool = GoogleSearchTool()
 	query = "Test Query"
 	result = google_search_tool.run(query)
+	print(google_search_tool.name)
+	print(google_search_tool.description)
+	print(google_search_tool.args)
 	print(result)
 
 
