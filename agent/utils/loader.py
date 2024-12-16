@@ -1,4 +1,6 @@
-from datasets import load_dataset, DatasetDict, Dataset
+import json
+
+from datasets import load_dataset, Dataset
 from dotenv import load_dotenv, find_dotenv
 from langchain import hub
 from langchain_core.prompts import ChatPromptTemplate
@@ -67,7 +69,7 @@ def process_dataset(dataset_name: str) -> Dataset:
 				"answer": example["answer"]['aliases'] # type: list[str]
 			}).select_columns(["context", "question", "answer"])
 		updated_dataset.to_json(save_file_path)
-	elif dataset_name == "tabmwp":
+	elif dataset_name == "tabmwp1k":
 		raw_dataset = load_dataset("Arietem/tabmwp", split="train")
 
 		def process_example(example: dict) -> dict:
@@ -84,6 +86,19 @@ def process_dataset(dataset_name: str) -> Dataset:
 			}
 		updated_dataset = raw_dataset.map(process_example).select_columns(["context", "question", "answer", "ques_type", "choices"])
 		updated_dataset.to_json(save_file_path)
+		print(f"Saved dataset to {save_file_path}")
+	elif dataset_name == "tabmwp":
+		with open("../../data/raw_data/tabmwp/tabmwp.json", "r") as file:
+			data = json.load(file)
+		for key in data.keys():
+			if data[key]["ques_type"] == "multi_choice":
+				data[key]["question"] = f"{data[key]['question']} Choose from the the options: {data[key]['choices']}"
+			data[key][
+				"context"] = f"Read the following table regarding \"{data[key]['table_title']}\" and then answer a question.\n\n{data[key]['table']}"
+		
+		with open(save_file_path, 'w') as file:
+			for record in data:
+				file.write(json.dumps(record) + "\n")
 		print(f"Saved dataset to {save_file_path}")
 	elif dataset_name == "gsm8k":
 		raw_dataset: Dataset = load_dataset(path="gsm8k", name="main", split="test")
@@ -136,6 +151,7 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 			"hotpot_qa": "arietem/hotpot_qa_cot",
 			"ambig_qa": "arietem/ambig_qa_cot",
 			"trivia_qa": "arietem/trivia_qa_cot",
+			"math": "arietem/math_cot",
 		}
 	elif mode == "direct":
 		dataset_prompts: dict = {
@@ -146,7 +162,8 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 			"hotpot_qa": "arietem/hotpot_qa_direct",
 			"ambig_qa": "arietem/ambig_qa_direct",
 			"trivia_qa": "arietem/trivia_qa_direct",
-			"toxicity": "arietem/toxicity_direct"
+			"toxicity": "arietem/toxicity_direct",
+			"math": "arietem/math_direct"
 		}
 	elif mode == "critic":
 		dataset_prompts: dict = {
@@ -159,12 +176,24 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 			"trivia_qa": "arietem/trivia_qa_critic",
 			"toxicity": "arietem/toxicity_critic"
 		}
-	else:
+	elif mode == "react":
+		dataset_prompts: dict = {
+			"gsm8k": "arietem/gsm8k_react",
+			"gsmhard": "arietem/gsm8k_react",
+			"svamp": "arietem/svamp_react",
+			"tabmwp": "arietem/tabmwp_react",
+			"hotpot_qa": "arietem/hotpot_qa_react",
+			"ambig_qa": "arietem/ambig_qa_react",
+			"trivia_qa": "arietem/trivia_qa_react",
+			"toxicity": "arietem/toxicity_react"
+		}
+	elif mode == "pot":
 		dataset_prompts: dict = {
 			"gsm8k": "arietem/gsm8k_pot",
 			"gsmhard": "arietem/gsm8k_pot",
 			"svamp": "arietem/svamp_pot",
-			"tabmwp": "arietem/tabmwp_pot"
+			"tabmwp": "arietem/tabmwp_pot",
+			"math": "arietem/math_pot",
 		}
 	
 	if dataset_name not in dataset_prompts:
@@ -174,7 +203,7 @@ def load_prompt(dataset_name: str, mode: str) -> ChatPromptTemplate:
 	return prompt
 
 
-def load_processed_data(dataset_name: str, file_path: str) -> DatasetDict:
+def load_processed_data(dataset_name: str, file_path: str) -> Dataset:
 	processed_dataset = load_dataset("json", data_files=file_path, split="train")
 	return processed_dataset
 
@@ -187,7 +216,7 @@ def main():
 	# unique_values = set(dataset["ans_type"])
 	# print(unique_values)
 	# print(dataset)
-	process_dataset("gsmhard")
+	process_dataset("tabmwp")
 
 
 if __name__ == '__main__':
