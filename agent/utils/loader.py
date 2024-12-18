@@ -93,12 +93,12 @@ def process_dataset(dataset_name: str) -> Dataset:
 		for key in data.keys():
 			if data[key]["ques_type"] == "multi_choice":
 				data[key]["question"] = f"{data[key]['question']} Choose from the the options: {data[key]['choices']}"
-			data[key][
-				"context"] = f"Read the following table regarding \"{data[key]['table_title']}\" and then answer a question.\n\n{data[key]['table']}"
+			data[key]["question"] = (f"Read the following table regarding \"{data[key]['table_title']}\" and then answer "
+			                         f"a question.\n\n{data[key]['table']}\n\n{data[key]['question']}")
 		
 		with open(save_file_path, 'w') as file:
-			for record in data:
-				file.write(json.dumps(record) + "\n")
+			for key, value in data.items():
+				file.write(json.dumps(value) + "\n")
 		print(f"Saved dataset to {save_file_path}")
 	elif dataset_name == "gsm8k":
 		raw_dataset: Dataset = load_dataset(path="gsm8k", name="main", split="test")
