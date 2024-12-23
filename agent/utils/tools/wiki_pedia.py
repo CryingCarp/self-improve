@@ -5,9 +5,12 @@ from typing import Dict
 import aiohttp
 import diskcache as dc
 from aiolimiter import AsyncLimiter
+from dotenv import load_dotenv, find_dotenv
 from langchain_community.tools import WikipediaQueryRun
 from langchain_community.utilities import WikipediaAPIWrapper
 from pydantic import Field
+
+_ = load_dotenv(find_dotenv())
 
 
 class WikipediaTool(WikipediaQueryRun):
@@ -63,7 +66,7 @@ class WikipediaTool(WikipediaQueryRun):
 			try:
 				async with self.limiter:
 					async with aiohttp.ClientSession() as session:
-						async with session.get(self.service_url, params=params) as response:
+						async with session.get(self.service_url, params=params, headers=self.headers) as response:
 							return await response.json()
 			except Exception as e:
 				retries += 1
@@ -131,43 +134,42 @@ class WikipediaTool(WikipediaQueryRun):
 
 
 def main():
-	# wikipedia = WikipediaTool()
-	# query = "Kiss and Tell 1945"
-	# result = wikipedia.run(query)
-	# print(result)
+	wikipedia = WikipediaTool()
+	query = "Kiss123"
+	result = wikipedia.run(query)
+	print(result)
 	pass
 
 
 async def async_main():
 	wikipedia = WikipediaTool()
 
+# 假设已经定义了 WikidataTool 类，并且 api_wrapper 和相关方法是正确定义的
+	async def test_arun(i):
+		query = f"Item {i}"  # 构造一个示例查询
+		results = await wikipedia.arun(query)
+		return results
 
-# # 假设已经定义了 WikidataTool 类，并且 api_wrapper 和相关方法是正确定义的
-# async def test_arun(i):
-# 	query = f"Item {i}"  # 构造一个示例查询
-# 	results = await wikipedia.arun(query)
-# 	return results
-#
-# num_tasks = 20  # 测试的并发任务数
-# queries = [f"Item {i}" for i in range(1020, 1040)]
-#
-# start_time = time()
-#
-# # 创建任务列表
-# tasks = [test_arun(queries[i]) for i in range(len(queries))]
-#
-# # 执行所有任务
-# results = await asyncio.gather(*tasks)
-#
-# end_time = time()
-#
-# # 计算并输出执行时间
-# elapsed_time = end_time - start_time
-# print(f"Executed {num_tasks} tasks in {elapsed_time:.2f} seconds.")
-#
-# # 输出部分结果进行检查
-# for result in results:
-# 	print(result)
+	num_tasks = 20  # 测试的并发任务数
+	queries = [f"Item {i}" for i in range(1040, 1041)]
+
+	start_time = time()
+
+	# 创建任务列表
+	tasks = [test_arun(queries[i]) for i in range(len(queries))]
+
+	# 执行所有任务
+	results = await asyncio.gather(*tasks)
+
+	end_time = time()
+
+	# 计算并输出执行时间
+	elapsed_time = end_time - start_time
+	print(f"Executed {num_tasks} tasks in {elapsed_time:.2f} seconds.")
+
+	# 输出部分结果进行检查
+	for result in results:
+		print(result)
 	
 
 

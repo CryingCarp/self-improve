@@ -17,8 +17,8 @@ _ = load_dotenv(find_dotenv())
 
     
 class BraveSearchTool(BaseTool):
-    cache = Field(init=True)
-    brave = Field(init=True)
+    cache: dc.Cache = Field(init=True)
+    brave: BraveSearchWrapper = Field(init=True)
     def __init__(self, name: str = "brave_search", 
                  description: str = "A search engine. useful for when you need to answer questions about current events. Input should be a search query. ", 
                  cache_dir: str = ".cache/brave_search_tool", api_key: str = None, search_kwargs: dict = {"count": 1}):
@@ -47,8 +47,8 @@ class PerspectiveTool(BaseTool):
                    "Input should be a text string."
                    )
     # api_key: str = Field(default=os.environ.get("PERSPECTIVE_API_KEY"), description="Google Perspective API key")
-    client = Field(init=True)
-    cache = Field(init=True)
+    client: discovery.Resource = Field(init=True)
+    cache: dc.Cache = Field(init=True)
 
     def __init__(self, api_key: str=os.environ.get("GOOGLE_PERSPECTIVE_API_KEY"), cache_dir: str = ".cache/perspective_tool"):
         super().__init__()
@@ -85,7 +85,7 @@ class PerspectiveTool(BaseTool):
 
 
 class AzureContentModerationTool(BaseTool):
-    name = "azure_content_moderation"
+    name: str = "azure_content_moderation"
     description = (
         "This tool analyzes text for safety using Azure AI Content Safety. "
         "It detects categories such as hate, self-harm, sexual content, and violence. "
@@ -95,7 +95,7 @@ class AzureContentModerationTool(BaseTool):
     key: str = Field(default=os.environ.get("AZURE_CONTENT_SAFETY_KEY"), description="Azure Content Safety API key")
     endpoint: str = Field(default=os.environ.get("AZURE_CONTENT_SAFETY_ENDPOINT"), description="Azure Content Safety endpoint")
     client: ContentSafetyClient = Field(init=True)
-    cache = Field(init=True)
+    cache: dc.Cache = Field(init=True)
 
     def __init__(self, endpoint: str = None, key: str = None, cache_dir: str = ".cache/azure_content_moderation_tool"):
         super().__init__(key=key, endpoint=endpoint)
@@ -137,8 +137,8 @@ class AzureContentModerationTool(BaseTool):
         return "\n".join(f"{category.capitalize()} severity: {severity} outof 7." for category, severity in results.items())
 
 class TavilySearch(BaseTool):
-    cache = Field(init=True)
-    tavily = Field(init=True)
+    cache: dc.Cache = Field(init=True)
+    tavily: TavilySearchResults = Field(init=True)
     def __init__(self, name: str = "tavily_search", description: str = (
                     "A search engine optimized for comprehensive, accurate, and trusted results. "
                     "Useful for when you need to answer questions about current events. "
@@ -182,8 +182,8 @@ def get_tools_dict(tools:list)->dict:
 
 def main():
     pass
-    # google_search = GoogleSearchTool()
-    # print(google_search.run("US"))
+    google_search = GoogleSearchTool()
+    print(google_search.run("US"))
     # tavily = TavilySearch()
     # print(tavily.run("University of Louisville game results January 2, 2012"))
     # bing_search = BingSearchTool()
