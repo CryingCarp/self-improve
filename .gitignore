@@ -3,6 +3,7 @@
 .env
 .vscode
 agent/src
+agent/inference/.cache/
 prompts/
 __pycache__/
 .idea/
