@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 
 import aiohttp
@@ -66,7 +67,7 @@ class GoogleKnowledgeGraphTool(BaseTool):
 		self.cache[query] = data
 		return data
 	
-	async def arun(self, query: str, limit: int = 3) -> list:
+	async def _arun(self, query: str, limit: int = 3) -> list:
 		"""
 		Async version of the run method.
 
@@ -112,44 +113,16 @@ class GoogleKnowledgeGraphTool(BaseTool):
 
 async def async_main():
 	tool = GoogleKnowledgeGraphTool()
-	# cache = dc.Cache("/Users/ariete/Projects/self-improve/agent/inference/.cache/google_knowledge_graph_tool")
-	# for key in cache.iterkeys():
-	# 	if len(cache[key]) == 0:
-	# 		del cache[key]
-
-	# Define how many requests you want to test
-	num_requests = 30
-	import time
-	# Store start time
-	start_time = time.time()
-
-	# Create a list of async tasks to simulate multiple concurrent requests
-	tasks = []
-	for i in range(num_requests, num_requests + 20):
-		query = f"Python programming language {i}"  # Make each query unique by appending an index
-		tasks.append(tool.arun(query=query, limit=3))
-
-	# Execute the requests concurrently
-	responses = await asyncio.gather(*tasks)
-
-	# Calculate the total time taken
-	end_time = time.time()
-	total_time = end_time - start_time
-
-	# Print responses (if needed)
-	for idx, response in enumerate(responses):
-		print(f"Response {idx + 1}: {response}")
-	
-	# Print total time taken and rate of requests
-	print(f"\nTotal time taken for {num_requests} requests: {total_time:.2f} seconds")
-	print(f"Rate of requests: {num_requests / total_time:.2f} requests per second")
+	print(tool.name)
+	print(tool.args_schema)
+	result = await tool._arun("Pythage 1")
 
 
 def main():
 	tool = GoogleKnowledgeGraphTool()
-	result = tool.run("Python programming language 1", limit=3)
-	print(result)
+	result = tool.run("Donald Trump", limit=3)
+	print(json.dumps(result[0], indent=4))
 
 if __name__ == '__main__':
-	asyncio.run(async_main())
-# main()
+	# asyncio.run(async_main())
+	main()
