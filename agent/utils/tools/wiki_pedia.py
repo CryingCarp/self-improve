@@ -25,7 +25,7 @@ class WikipediaTool(WikipediaQueryRun):
 	             cache_dir: str = "/Users/ariete/Projects/self-improve/agent/inference/.cache/wikipedia_tool"):
 		super().__init__(api_wrapper=api_wrapper)
 		self.cache = dc.Cache(cache_dir)
-		self.limiter = AsyncLimiter(max_rate=10, time_period=8)  # 每秒最多200次请求
+		self.limiter = AsyncLimiter(max_rate=10, time_period=10)  # 每秒最多200次请求
 		self.headers = {
 			'User-Agent': 'wikipedia (https://github.com/goldsmith/Wikipedia/)',
 			'Authorization': os.environ.get('WIKIMEIDA_API_KEY')
