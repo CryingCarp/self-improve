@@ -12,7 +12,8 @@ from agent.utils.qa import normalize_answer, multi_ref_score
 #     split="train",)
 
 dataset = []
-with open("D:\Projects\self-improve\output\inference\gpt-3.5-turbo\hotpot_qa\self-improve\with_question_before_fusion_cot_num_samples_1000_top_p_0.95_temperature_0_seed_42.jsonl", "r") as f:
+with open(
+		"/output/inference/gpt-3.5-turbo/hotpot_qa/self-improve/with_question_before_fusion_cot_num_samples_1000_top_p_0.95_temperature_0_seed_42.jsonl", "r") as f:
 	for line in f:
 		dataset.append(json.loads(line))
 
