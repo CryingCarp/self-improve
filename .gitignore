@@ -7,3 +7,4 @@ agent/inference/.cache/
 prompts/
 __pycache__/
 .idea/
+.DS_Store
